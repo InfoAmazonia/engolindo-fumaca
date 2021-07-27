@@ -5,6 +5,7 @@ tirar_var <- c(
   "obes_imc",  "pac_cocbo", "pac_dscbo", "pais_vgm"
 )
 
+# source: https://opendatasus.saude.gov.br/dataset/bd-srag-2020
 da_srag_full <- "data-raw/srag_INFLUD-24-05-2021.csv" %>%
   data.table::fread() %>%
   janitor::clean_names() %>%
