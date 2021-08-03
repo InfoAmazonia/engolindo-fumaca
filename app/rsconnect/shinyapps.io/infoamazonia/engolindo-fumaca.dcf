@@ -5,9 +5,9 @@ account: infoamazonia
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4209901
-bundleId: 4839752
+bundleId: 4884933
 url: https://infoamazonia.shinyapps.io/engolindo-fumaca/
-when: 1626830152.16307
-lastSyncTime: 1626830152.1631
+when: 1628019587.1537
+lastSyncTime: 1628019587.15375
 asMultiple: FALSE
 asStatic: FALSE

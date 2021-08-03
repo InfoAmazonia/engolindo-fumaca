@@ -12,7 +12,7 @@ da_srag_full <- "data-raw/srag_INFLUD-24-05-2021.csv" %>%
   dplyr::select(-dplyr::all_of(tirar_var))
 
 da_cams_municipio <- readr::read_csv("data-raw/pm25_muni_daily.csv") %>%
-  dplyr::filter(!is.na(ppm25)) %>%
+  dplyr::filter(!is.na(ppm25), ppm25 != "NaN") %>%
   dplyr::rename(pm25 = ppm25) %>%
   dplyr::mutate(pm25 = as.numeric(pm25))
 
