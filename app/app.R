@@ -108,7 +108,12 @@ ui <- dashboardPage(
         )
       )
     )
+  ),
+  tags$footer(tags$a(
+    href = "https://infoamazonia.shinyapps.io/engolindo-fumaca/",
+    "Metodologia: https://infoamazonia.shinyapps.io/engolindo-fumaca/"
   ))
+)
 )
 
 # server -----------------------------------------------------------------------
