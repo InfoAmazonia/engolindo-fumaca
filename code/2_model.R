@@ -4,7 +4,8 @@ library(DHARMa)
 
 # import ------------------------------------------------------------------
 
-da_model <- readr::read_rds("data-tidy/base_final.rds")
+da_model <- readr::read_rds("data-tidy/base_final.rds") %>%
+  dplyr::mutate(ano_mes = stringr::str_c("2020_", mes))
 
 # distribuição da resposta internações em escala log
 da_model %>%
@@ -36,15 +37,16 @@ da_model %>%
 fit_int_srag <- glmmTMB(
   srag ~ offset(log(pop)) + pm25 + precipitacao +
     casos_covid_mes +
-    dias_acima_25 + uf + porte + area_mun_km +
+    dias_acima_25 + uf + porte +
+    area_mun_km +
     (1|code_muni:ano_mes),
   data = da_model, family = nbinom2
 )
 summary(fit_int_srag)
 res <- simulateResiduals(fit_int_srag)
 plot(res)
-readr::write_rds(fit_int_srag, "outputs/modelos/modelo_internacoes_srag.rds")
-readr::write_rds(fit_int_srag, "outputs/app/internacoes/data/modelo_internacoes_srag.rds")
+# readr::write_rds(fit_int_srag, "outputs/modelos/modelo_internacoes_srag.rds")
+readr::write_rds(fit_int_srag, "app/data/modelo_internacoes_srag.rds")
 
 # Modelo Covid ------------------------------------------------------------
 # Resp: covid
@@ -54,15 +56,16 @@ readr::write_rds(fit_int_srag, "outputs/app/internacoes/data/modelo_internacoes_
 fit_int_covid <- glmmTMB(
   covid ~ offset(log(pop)) + pm25 + precipitacao +
     casos_covid_mes +
-    dias_acima_25 + uf + porte + area_mun_km +
+    dias_acima_25 + uf + porte +
+    # area_mun_km +
     (1|code_muni:ano_mes),
   data = da_model, family = nbinom2
 )
 summary(fit_int_covid)
 res <- simulateResiduals(fit_int_covid)
 plot(res)
-readr::write_rds(fit_int_covid, "outputs/modelos/modelo_internacoes_covid.rds")
-readr::write_rds(fit_int_covid, "outputs/app/internacoes/data/modelo_internacoes_covid.rds")
+# readr::write_rds(fit_int_covid, "outputs/modelos/modelo_internacoes_covid.rds")
+readr::write_rds(fit_int_covid, "app/data/modelo_internacoes_covid.rds")
 
 # Modelo óbitos covid -----------------------------------------------------
 # Resp: obito_covid
@@ -82,8 +85,8 @@ fit_ob_covid <- glmmTMB(
 summary(fit_ob_covid)
 res <- simulateResiduals(fit_ob_covid)
 plot(res)
-readr::write_rds(fit_ob_covid, "outputs/modelos/modelo_obitos_covid.rds")
-readr::write_rds(fit_ob_covid, "outputs/app/internacoes/data/modelo_obitos_covid.rds")
+# readr::write_rds(fit_ob_covid, "outputs/modelos/modelo_obitos_covid.rds")
+readr::write_rds(fit_ob_covid, "app/data/modelo_obitos_covid.rds")
 
 
 # Modelo óbitos SRAG -----------------------------------------------------

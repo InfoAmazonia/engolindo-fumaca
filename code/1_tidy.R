@@ -11,6 +11,7 @@ da_srag_full <- "data-raw/srag_INFLUD-24-05-2021.csv" %>%
   janitor::clean_names() %>%
   dplyr::select(-dplyr::all_of(tirar_var))
 
+# da_cams_municipio <- readr::read_csv("~/Downloads/dailyPPM25Mun.csv") %>%
 da_cams_municipio <- readr::read_csv("data-raw/pm25_muni_daily.csv") %>%
   dplyr::filter(!is.na(ppm25), ppm25 != "NaN") %>%
   dplyr::rename(pm25 = ppm25) %>%
@@ -350,4 +351,83 @@ readr::write_rds(precip, "data-tidy/precipitacao.rds")
 # base final
 readr::write_rds(da_final, "data-tidy/base_final.rds")
 readr::write_rds(da_final, "app/data/base_final.rds")
+
+
+da_final %>%
+  dplyr::filter(mes %in% 7:10) %>%
+  dplyr::transmute(
+    code_muni, muni_nm, uf, pop,
+    internacoes_srag = srag,
+    internacoes_covid = covid,
+    dias_acima_25
+  ) %>%
+  dplyr::group_by(code_muni, muni_nm, uf, pop, internacoes_srag, internacoes_covid) %>%
+  dplyr::summarise(
+    total_internacoes_srag = sum(internacoes_srag),
+    total_internacoes_covid = sum(internacoes_covid),
+    total_dias_acima_25 = sum(dias_acima_25),
+    media_internacoes_srag = mean(internacoes_srag),
+    media_internacoes_covid = mean(internacoes_covid),
+    media_dias_acima_25 = mean(dias_acima_25),
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    pct_a_mais_srag = exp(ef_int_srag$dias_acima_25)^media_dias_acima_25 - 1,
+    pct_a_mais_covid = exp(ef_int_covid$dias_acima_25)^media_dias_acima_25 - 1,
+  ) %>%
+  readr::write_csv("~/Downloads/dados_internacoes_julho_outubro.csv")
+
+da_final %>%
+  dplyr::filter(mes %in% 7:10) %>%
+  dplyr::transmute(
+    code_muni, muni_nm, uf, pop,
+    internacoes_srag = srag,
+    internacoes_covid = covid,
+    dias_acima_25
+  ) %>%
+  dplyr::group_by(code_muni, muni_nm, uf, pop) %>%
+  dplyr::summarise(
+    total_internacoes_srag = sum(internacoes_srag),
+    total_internacoes_covid = sum(internacoes_covid),
+    total_dias_acima_25 = sum(dias_acima_25),
+    media_internacoes_srag = mean(internacoes_srag),
+    media_internacoes_covid = mean(internacoes_covid),
+    media_dias_acima_25 = mean(dias_acima_25),
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    pct_a_mais_srag = exp(ef_int_srag$dias_acima_25)^media_dias_acima_25 - 1,
+    pct_a_mais_covid = exp(ef_int_covid$dias_acima_25)^media_dias_acima_25 - 1,
+  ) %>%
+  readr::write_csv("~/Downloads/dados_internacoes_julho_outubro.csv")
+
+da_final %>%
+  dplyr::filter(
+    uf == "AC",
+    mes == 9
+  ) %>%
+  dplyr::transmute(
+    code_muni, muni_nm, uf, pop,
+    internacoes_srag = srag,
+    internacoes_covid = covid,
+    dias_acima_25,
+    n_focos
+  ) %>%
+  dplyr::group_by(code_muni, muni_nm, uf, pop) %>%
+  dplyr::summarise(
+    total_internacoes_srag = sum(internacoes_srag),
+    media_internacoes_srag = mean(internacoes_srag),
+    total_internacoes_covid = sum(internacoes_covid),
+    media_internacoes_covid = mean(internacoes_covid),
+    total_dias_acima_25 = sum(dias_acima_25),
+    media_dias_acima_25 = mean(dias_acima_25),
+    total_n_focos = sum(n_focos),
+    media_n_focos = mean(n_focos),
+    .groups = "drop"
+  ) %>%
+  dplyr::mutate(
+    pct_a_mais_srag = exp(ef_int_srag$dias_acima_25)^media_dias_acima_25 - 1,
+    pct_a_mais_covid = exp(ef_int_covid$dias_acima_25)^media_dias_acima_25 - 1,
+  ) %>%
+  readr::write_csv("~/Downloads/acre_setembro.csv")
 

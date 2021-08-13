@@ -14,6 +14,7 @@ da_kmedias <- da_model %>%
     pop = mean(pop),
     n_focos = mean(n_focos)
   )
+readr::write_rds(da_kmedias, "app/data/da_kmedias.rds")
 
 da_scaled <- da_kmedias %>%
   tibble::column_to_rownames("code_muni") %>%
@@ -40,7 +41,7 @@ set.seed(923)
 
 #perform k-means clustering with k = 4 clusters
 km <- kmeans(da_scaled, centers = 5, nstart = 25)
-readr::write_rds(km, "outputs/modelos/km.rds")
+readr::write_rds(km, "data-tidy/km.rds")
 km$centers
 
 fviz_cluster(km, data = da_scaled)

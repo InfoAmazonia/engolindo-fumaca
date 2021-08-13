@@ -1,0 +1,284 @@
+---
+title: "Relações entre Covid/SRAG e poluição"
+date: "agosto/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(magrittr)
+library(factoextra)
+library(cluster)
+m_covid <- readr::read_rds("../app/data/modelo_internacoes_covid.rds")
+m_srag <- readr::read_rds("../app/data/modelo_internacoes_srag.rds")
+# pnud <- readr::read_rds("../data-tidy/pnud.rds")s
+km <- readr::read_rds("../data-tidy/km.rds")
+da_model <- readr::read_rds("../app/data/da_model.rds")
+da_kmedias <- readr::read_rds("../app/data/da_kmedias.rds")
+da_clustered <- readr::read_rds("../app/data/da_clustered.rds")
+pnud <- abjData::pnud_min %>%
+  dplyr::filter(ano == "2010") %>%
+  dplyr::mutate(muni_id = stringr::str_sub(muni_id, 1, 6)) %>%
+  dplyr::transmute(
+    code_muni = muni_id,
+    muni_nm,
+    uf = uf_sigla
+  )
+```
+
+## Modelo geral
+
+O modelo proposto é um modelo linear generalizado misto com resposta binomial 
+negativa com função de ligação logarítmica. Trata-se de uma generalização do 
+modelo Poisson, com uma flexibilização do parâmetro de dispersão, que na 
+distribuição Poisson se dá por $Var(X) = E(X) = \lambda$. 
+
+### Variável resposta
+
+A variável considerada como resposta é contagem de internações por Covid-19 por 
+município/mês, ou seja, uma variável discreta com suporte no conjunto dos 
+inteiros não negativos.
+
+### Variáveis explicativas
+
+Dentre as variáveis explicativas, foram consideradas variáveis relacionadas à 
+poluição, precipitação, características dos municípios e, em um segundo momento,
+desmatamento. Considerou-se as variáveis município e mês como clusters com 
+efeito aleatório, enquanto o restante foi considerado como variáveis de efeito 
+fixo.
+
+As seguintes variáveis explicativas foram consideradas no modelo final:
+
+- uf: estado
+- pop: população segundo PNUD
+- porte: até 25 mil habitantes, entre 25 mil e 100 mil habitantes, mais de 100 
+mil habitantes
+- pm25: concentração média de material particulado 2.5
+- dias acima de 25: número de dias no mês com média de pm25 acima de 
+$25 \mu g / m^3$)
+- precipitacao: precipitação média
+- área desmatada: área desmatada, em km²
+- covid-19: casos de Covid-19 registrados
+
+Outras variáveis como a quantidade de focos de calor e a taxa de leitos por 100
+mil habitantes também foram consideradas, mas foram descartadas na seleção do
+modelo final.
+
+## Resultados
+
+### Internações por Covid
+```{r}
+summary(m_covid)
+```
+# Internações por SRAG
+
+```{r}
+summary(m_srag)
+```
+
+
+Observa-se que, contraditoriamente, a concentração média de pm2.5 contribui de 
+forma negativa na quantidade de internações. Mais especificamente, exponenciando 
+o valor da estimativa do efeito de pm25, o aumento de $1 \mu g/m^3$ na
+concentração diminui a expectativa de internações em média em cerca de 
+`r scales::percent(1-exp(glmmTMB::fixef(m_covid)$cond["pm25"]), .1)` (Covid) e 
+`r scales::percent(1-exp(glmmTMB::fixef(m_srag)$cond["pm25"]), .1)` (SRAG), 
+fixadas as outras variáveis. 
+
+No processo de seleção das variáveis, notou-se que o efeito de pm2.5 passou a 
+ser negativo a partir da inclusão da variável dias acima de 25, o que pode 
+indicar que o fator de maior importância está na continuidade da exposição à 
+poluição em um patamar elevado, mais do que a concentração por si só.
+
+De fato, o aumento de um dia no mês com concentração média de material 
+particulado leva a um aumento na expectativa do número de internações em cerca
+de `r scales::percent(exp(glmmTMB::fixef(m_covid)$cond["dias_acima_25"])-1, .1)` para 
+Covid e em `r scales::percent(exp(glmmTMB::fixef(m_srag)$cond["dias_acima_25"])-1, .1)`
+para SRAG.
+
+O restante dos resultados obtidos segue o que se imaginava de forma intuitiva ou
+que foi observado em uma análise exploratória inicial: municípios de menor 
+porte possuem uma taxa de internação inferior, o nível de precipitação maior tem
+efeito negativo na internação, e municípios no Amazonas tendem a ter mais 
+internações, quando fixadas as outras variáveis.
+
+## Estimativas por UF
+
+Considerando as médias mensais por UF, é possível ter uma estimativa da 
+quantidade de internações a mais que relacionadas ao aumento da poluição (em 
+comparação a um período hipotético com nenhum dia com concentração de material 
+particulado acima de $25 \mu g/m^3$). A seguir, seguem as tabelas por UF 
+considerando a média de dias no período entre julho e outubro de 2020 e os 
+respectivos aumentos no valor esperado de internações por Covid e SRAG.
+
+```{r}
+efeitos_covid <- glmmTMB::fixef(m_covid)$cond %>%
+  dplyr::bind_rows() %>%
+  janitor::clean_names()
+efeitos_srag <- glmmTMB::fixef(m_srag)$cond %>%
+  dplyr::bind_rows() %>%
+  janitor::clean_names()
+
+da_model %>%
+  dplyr::filter(dplyr::between(mes, 7, 10)) %>%
+  dplyr::group_by(uf) %>%
+  dplyr::summarise(media_dias = round(mean(dias_acima_25), 2)) %>% 
+  dplyr::mutate(
+    pct_internacoes_covid = exp(efeitos_covid$dias_acima_25)^media_dias - 1,
+    pct_internacoes_covid = scales::percent(pct_internacoes_covid, .1),
+    pct_internacoes_srag = exp(efeitos_srag$dias_acima_25)^media_dias - 1,
+    pct_internacoes_srag = scales::percent(pct_internacoes_srag, .1),
+    
+  ) %>% 
+  knitr::kable(col.names = c(
+    "UF", "Dias acima de 25", 
+    "% a mais de internações (Covid)", 
+    "% a mais de internações (SRAG)"
+  ))
+```
+
+
+
+## Agrupamento de municípios
+
+Como os municípios foram considerados como clusters de efeito aleatório no 
+modelo de regressão, a interpretação do efeito do município no número de 
+internações por SRAG é menos imediata e mais complexa. Como alternativa, foi
+proposto fazer um agrupamento por k-médias dos municípios considerando as 
+variáveis numéricas com significância não relacionadas à Covid-19, ou seja: 
+população, precipitação, área desmatada, concentração de pm 2.5, número de dias
+acima de $25 \mu g / m^3$ e área desmatada. Além disso, também foi incluído o 
+número de focos de calor.
+
+O k-médias é um algoritmo de classificação iterativo que classifica observações
+em um número pré-determinado de clusters considerando a distância (similaridade)
+entre as observações. Para determinar o número ideal de grupos, é testado quanto
+a divisão em mais clusters traz de ganho em termos de diferenciação entre os 
+clusters.
+
+Como no caso dos municípios o interesse é especificamente no período das 
+queimadas, os valores usados correspondem às médias das variáveis por mês no 
+período de julho a outubro de 2020 por município.
+
+Foram identificados 5 grupos de municípios, cujas medidas (padronizadas) para os 
+centroides seguem na tabela abaixo:
+
+```{r}
+km$centers %>% 
+  knitr::kable()
+```
+O grupo 4 se destaca por ser o grupo com um perfil de maior vulnerabilidade: 
+apresenta maior concentração de pm2.5, mais dias com concentração média acima de
+$25 \mu g/m^3$, baixa precipitação e alto índice de desmatamento. Os municípios 
+pertencentes a esse grupo também tiverem mais focos de calor no período, em 
+comparação aos outros grupos. Os 10 municípios do grupo são:
+
+```{r}
+da_clustered %>% 
+  dplyr::filter(cluster == 4) %>% 
+  knitr::kable()
+```
+
+### Agrupamentos alternativos
+
+Outros agrupamentos também foram propostos a partir da inclusão da variável 
+desmatamento e da exclusão do número de focos, por exemplo. No caso da inclusão
+da área desmatada por município, o cluster obtido anteriormente permanece igual,
+enquanto que os agrupamento sem os focos de calor geraram grupos menores de 
+municípios para os clusters com alta poluição.
+
+### Com internações e focos
+
+```{r}
+da_scaled <- da_kmedias %>%
+  tibble::column_to_rownames("code_muni") %>%
+  scale()
+set.seed(923)
+km <- kmeans(da_scaled, centers = 5, nstart = 25)
+da_clustered <- da_kmedias %>%
+  dplyr::bind_cols(cluster = km$cluster)
+
+
+```
+
+Medidas dos centroides
+```{r}
+km$centers %>% 
+  dplyr::as_tibble() %>% 
+  dplyr::mutate(cluster = 1:5) %>% 
+  dplyr::relocate(cluster) %>% 
+  knitr::kable()
+```
+
+Municípios do cluster 
+```{r}
+da_clustered %>%
+  dplyr::inner_join(pnud, "code_muni") %>%
+  dplyr::relocate(muni_nm, uf, .after = code_muni) %>% 
+  dplyr::filter(cluster == 4) %>% 
+  knitr::kable()
+```
+
+### Com internações e sem focos
+
+```{r}
+da_scaled <- da_kmedias %>%
+  tibble::column_to_rownames("code_muni") %>%
+  dplyr::select(-n_focos) %>% 
+  scale()
+set.seed(923)
+km <- kmeans(da_scaled, centers = 5, nstart = 25)
+da_clustered <- da_kmedias %>%
+  dplyr::bind_cols(cluster = km$cluster)
+```
+
+Medidas dos centroides
+```{r}
+km$centers %>% 
+  dplyr::as_tibble() %>% 
+  dplyr::mutate(cluster = 1:5) %>% 
+  dplyr::relocate(cluster) %>% 
+  knitr::kable()
+```
+
+Municípios do cluster 
+```{r}
+da_clustered %>%
+  dplyr::inner_join(pnud, "code_muni") %>%
+  dplyr::relocate(muni_nm, uf, .after = code_muni) %>% 
+  dplyr::filter(cluster == 4) %>% 
+  knitr::kable()
+```
+
+### Sem internações e sem focos
+
+```{r}
+da_scaled <- da_kmedias %>%
+  tibble::column_to_rownames("code_muni") %>%
+  dplyr::select(-n_focos, -internacoes) %>% 
+  scale()
+set.seed(923)
+km <- kmeans(da_scaled, centers = 5, nstart = 25)
+da_clustered <- da_kmedias %>%
+  dplyr::bind_cols(cluster = km$cluster)
+```
+
+Medidas dos centroides
+```{r}
+km$centers %>% 
+  dplyr::as_tibble() %>% 
+  dplyr::mutate(cluster = 1:5) %>% 
+  dplyr::relocate(cluster) %>% 
+  knitr::kable()
+```
+
+Municípios do cluster 
+```{r}
+da_clustered %>%
+  dplyr::inner_join(pnud, "code_muni") %>%
+  dplyr::relocate(muni_nm, uf, .after = code_muni) %>% 
+  dplyr::filter(cluster == 3) %>% 
+  knitr::kable()
+```
+
+
