@@ -2,6 +2,25 @@ library(shiny)
 library(shinydashboard)
 import::from(magrittr, "%>%")
 
+library(fresh)
+# Create the theme
+tema_infoamazonia <- create_theme(
+  adminlte_color(
+    light_blue = "#222C38"
+  ),
+  adminlte_sidebar(
+    width = "400px",
+    dark_bg = "#4E5660",
+    dark_hover_bg = "#7A8088",
+    dark_color = "#222C38"
+  ),
+  adminlte_global(
+    content_bg = "FFFFFF",
+    box_bg = "#D3D5D7",
+    info_box_bg = "#A7ABAF"
+  )
+)
+
 dados <- readr::read_rds("data/base_final.rds")
 
 # Internações SRAG
@@ -27,7 +46,6 @@ muni_vulneraveis <- dados %>%
 # ui ---------------------------------------------------------------------------
 
 ui <- dashboardPage(
-  skin = "red",
 
   # title ----
   dashboardHeader(title = "Covid e Poluição"),
@@ -73,47 +91,76 @@ ui <- dashboardPage(
   )),
 
     # body ----
-  dashboardBody(tabItems(
-
+  dashboardBody(
+    use_theme(tema_infoamazonia),
+    tabItems(
     # internações ----
-    tabItem(
-      tabName = "page1",
-      fluidRow(
-        shinydashboard::tabBox(
-          width = 12,
-          id = "internacoes",
-          title = "Efeito de dias acima de 25 por mês em internações",
+      tabItem(
+        tabName = "page1",
+        fluidRow(
+          shinydashboard::tabBox(
+            width = 12,
+            id = "internacoes",
+            title = "Relação entre persistência da poluição e internações",
 
-          shiny::tabPanel(
-            "Geral e UF",
-            div(
-              h4("Geral"),
-              reactable::reactableOutput("ef_pol_geral")
+            shiny::tabPanel(
+              "Geral e UF",
+              div(
+                h4("Geral"),
+                reactable::reactableOutput("ef_pol_geral")
+              ),
+              div(
+                h4("Por UF"),
+                reactable::reactableOutput("ef_pol_uf"),
+                downloadButton("download_uf", "Download")
+              )
             ),
-            div(
-              h4("Por UF"),
-              reactable::reactableOutput("ef_pol_uf"),
-              downloadButton("download_uf", "Download")
+            shiny::tabPanel(
+              "Municípios vulneráveis",
+              reactable::reactableOutput("ef_pol_vulneraveis")
+            ),
+            shiny::tabPanel(
+              "Todos os municípios",
+              reactable::reactableOutput("ef_pol_municipios"),
+              downloadButton("download", "Download")
             )
-          ),
-          shiny::tabPanel(
-            "Municípios vulneráveis",
-            reactable::reactableOutput("ef_pol_vulneraveis"),
-          ),
-          shiny::tabPanel(
-            "Todos os municípios",
-            reactable::reactableOutput("ef_pol_municipios"),
-            downloadButton("download", "Download")
           )
         )
       )
-    )
-  ),
-  tags$footer(tags$a(
-    href = "https://infoamazonia.shinyapps.io/engolindo-fumaca/",
-    "Metodologia: https://infoamazonia.shinyapps.io/engolindo-fumaca/"
-  ))
-)
+    ),
+    tags$footer(
+      tags$b("Fonte dos dados primários:"), "PM 2.5 e focos de calor - ",
+      tags$a(
+        href = "https://apps.ecmwf.int/datasets/data/cams-nrealtime/levtype=sfc/",
+        target = "_blank", "CAMS-NRT"
+      ),
+      "; internações por SRAG, incluindo Covid-19 - ",
+      tags$a(
+        href = "https://opendatasus.saude.gov.br/dataset/bd-srag-2020",
+        target = "_blank", "Sivep/Datasus"
+      ),
+      "; desmatamento - ",
+      tags$a(
+        href = "http://terrabrasilis.dpi.inpe.br/app/dashboard/deforestation/biomes/legal_amazon/rates",
+        target = "_blank", "DETER/Inpe"
+      ),
+      "; precipitação - ",
+      tags$a(
+        href = "https://chc.ucsb.edu/data/chirps",
+        target = "_blank", "CHIRPS - UCSB/CHG"
+      ),
+      "; focos de calor - ",
+      tags$a(
+        href = "https://queimadas.dgi.inpe.br/queimadas/bdqueimadas#graficos",
+        target = "_blank", "S-NPP/VIIRS 375m - Inpe"
+      )
+    ),
+    tags$footer(tags$b("Metodologia:"), tags$a(
+      href = "https://infoamazonia.shinyapps.io/engolindo-fumaca/",
+      target = "_blank",
+      "https://infoamazonia.shinyapps.io/engolindo-fumaca/"
+    ))
+  )
 )
 
 # server -----------------------------------------------------------------------
@@ -151,9 +198,9 @@ server <- function(input, output, session) {
       ) %>%
       reactable::reactable(
         columns = list(
-          media_dias = reactable::colDef("Média de dias acima de 25"),
-          pct_int_srag = reactable::colDef("% a mais de internações SRAG"),
-          pct_int_covid = reactable::colDef("% a mais de internações Covid")
+          media_dias = reactable::colDef("Média de dias com PM2.5 acima do limite (25μg/m³)"),
+          pct_int_srag = reactable::colDef("% a mais de internações (SRAG)"),
+          pct_int_covid = reactable::colDef("% a mais de internações (Covid)")
         )
       )
   })
@@ -170,9 +217,9 @@ server <- function(input, output, session) {
       reactable::reactable(
         columns = list(
           uf = reactable::colDef("UF"),
-          media_dias = reactable::colDef("Média de dias acima de 25"),
-          pct_int_srag = reactable::colDef("% a mais de internações SRAG"),
-          pct_int_covid = reactable::colDef("% a mais de internações Covid")
+          media_dias = reactable::colDef("Média de dias com PM2.5 acima do limite (25μg/m³)"),
+          pct_int_srag = reactable::colDef("% a mais de internações (SRAG)"),
+          pct_int_covid = reactable::colDef("% a mais de internações (Covid)")
         )
       )
   })
@@ -191,9 +238,9 @@ server <- function(input, output, session) {
         columns = list(
           code_muni = reactable::colDef("Código IBGE"),
           muni_nm = reactable::colDef("Município"),
-          dias_acima_25 = reactable::colDef("Média de dias acima de 25 (jul-out)"),
-          pct_int_srag = reactable::colDef("% a mais de internações SRAG"),
-          pct_int_covid = reactable::colDef("% a mais de internações Covid")
+          dias_acima_25 = reactable::colDef("Média de dias com PM2.5 acima do limite (25μg/m³)"),
+          pct_int_srag = reactable::colDef("% a mais de internações (SRAG)"),
+          pct_int_covid = reactable::colDef("% a mais de internações (Covid)")
         )
       )
   })
@@ -223,9 +270,9 @@ server <- function(input, output, session) {
           code_muni = reactable::colDef("Código IBGE"),
           muni_nm = reactable::colDef("Município"),
           uf = reactable::colDef("UF"),
-          dias_acima_25 = reactable::colDef("Média de dias acima de 25 (jul-out)"),
-          pct_int_srag = reactable::colDef("% a mais de internações SRAG"),
-          pct_int_covid = reactable::colDef("% a mais de internações Covid")
+          dias_acima_25 = reactable::colDef("Média de dias com PM2.5 acima do limite (25μg/m³)"),
+          pct_int_srag = reactable::colDef("% a mais de internações (SRAG)"),
+          pct_int_covid = reactable::colDef("% a mais de internações (Covid)")
         ),
         filterable = TRUE
       )
