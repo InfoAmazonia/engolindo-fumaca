@@ -129,7 +129,7 @@ ui <- dashboardPage(
       )
     ),
     tags$footer(
-      tags$b("Fonte dos dados primários:"), "PM 2.5 e focos de calor - ",
+      tags$b("Fonte dos dados primários:"), "PM 2.5 - ",
       tags$a(
         href = "https://apps.ecmwf.int/datasets/data/cams-nrealtime/levtype=sfc/",
         target = "_blank", "CAMS-NRT"
@@ -148,17 +148,12 @@ ui <- dashboardPage(
       tags$a(
         href = "https://chc.ucsb.edu/data/chirps",
         target = "_blank", "CHIRPS - UCSB/CHG"
-      ),
-      "; focos de calor - ",
-      tags$a(
-        href = "https://queimadas.dgi.inpe.br/queimadas/bdqueimadas#graficos",
-        target = "_blank", "S-NPP/VIIRS 375m - Inpe"
       )
     ),
     tags$footer(tags$b("Metodologia:"), tags$a(
-      href = "https://infoamazonia.shinyapps.io/engolindo-fumaca/",
+      href = "https://infoamazonia.org/2021/08/23/engolindo-fumaca-metodologia/",
       target = "_blank",
-      "https://infoamazonia.shinyapps.io/engolindo-fumaca/"
+      "https://infoamazonia.org/2021/08/23/engolindo-fumaca-metodologia/"
     ))
   )
 )
